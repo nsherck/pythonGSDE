@@ -23,11 +23,15 @@ def pythonGSDE():
 	
 	lsegment  = 1.0			# The length of a statistical segment / math.sqrt(6)
 	thetabulk = 1.0			# The volume fraction of the bulk	(Cb*lsegment**3)
-	excvol    =	100			# The excluded volume parameter     (v = (1-2*ChiPS)*lsegment**3)
+	excvol    =	200			# The excluded volume parameter     (v = (1-2*ChiPS)*lsegment**3)
 	wparam    =	200			# The w parameter 					(w = lsegment**6)
 	N         =	1.0			# Chain Length
 	alpha     = 2. + (3.*excvol*(lsegment)**3)/(wparam*thetabulk)	# (2+3*v/w*Cb)
+	print "alpha"
+	print alpha
 	A 		  = (4*(1+1/alpha))
+	print"A"
+	print A
 	# The End Corrected Bulk Correlation Length. The Edwards Corrected Correlation Lenght from GSD.
 	CorrLength= lsegment/math.sqrt(2*(excvol*thetabulk/lsegment**3 + wparam*thetabulk**2/lsegment**6 + 1/N))
 	print "Correlation Length"
@@ -43,10 +47,10 @@ def pythonGSDE():
 	print deltaSeg
 	# Separation Distance is h, Maximum Lenght is L
 	refRg = lsegment*N**(0.5)
-	L = 100
+	L = 6
 	L2 = L/refRg
-	h = np.linspace(0.40,L2,100)
-	n = np.linspace(1,1000000,1000000)
+	h = np.linspace(0.4,L2,200)
+	n = np.linspace(1,100000,100000)
 	
 	WTot = []
 	WGSD = []
@@ -57,18 +61,21 @@ def pythonGSDE():
 	
 	for i in h:
 	
-		wGSD = -1*N**(0.5)/CorrLength*thetabulk*alpha**2*np.exp(-1*i/CorrLength*lsegment*N**(0.5))
+		wGSD = (-1*N**(0.5)/CorrLength)*thetabulk*A**2*np.exp(-1*i/CorrLength*lsegment*N**(0.5))
 		#print "h"
 		#print i
 		preFactor = (4*thetabulk/N/lsegment**3)*(deltaEnd-(i*lsegment*N**0.5+2*deltaSeg)/2*np.log(1+(2*deltaEnd/(i*lsegment*N**0.5+2*deltaSeg))))
 		#print "preFactor"
 		#print preFactor
 		for j in n:
-			wEND = wEND + ((1-(np.exp(-1*(4*(math.pi*j/i)**2))*(1+(4*(math.pi*j/i)**2))))/((4*(math.pi*j/i)**2)-1+np.exp(-1*(4*(math.pi*j/i)**2))))
+			y = 4*(math.pi**2)*(j**2)/(i**2)
+			wEND = wEND + ((1-(1+y)*np.exp(-1*y))/(y-1+np.exp(-1*y)))
+			
+			
 			#print "n"
 			#print wEND
 		SumTot.append(2*wEND)
-		wEND = preFactor*(2*wEND - Kappa*i)
+		wEND = preFactor*(2*wEND - Kappa*i + 1)
 		#print "wEND"
 		#print wEND
 		WTot.append((wGSD + wEND)*math.sqrt(N)*lsegment**3/thetabulk)
