@@ -23,8 +23,8 @@ def pythonGSDE():
 	
 	lsegment  = 1.0			# The length of a statistical segment / math.sqrt(6)
 	thetabulk = 1.0			# The volume fraction of the bulk	(Cb*lsegment**3)
-	excvol    =	200			# The excluded volume parameter     (v = (1-2*ChiPS)*lsegment**3)
-	wparam    =	200			# The w parameter 					(w = lsegment**6)
+	excvol    =	65 		# The excluded volume parameter     (v = (1-2*ChiPS)*lsegment**3)
+	wparam    =	50			# The w parameter 					(w = lsegment**6)
 	N         =	1.0			# Chain Length
 	alpha     = 2. + (3.*excvol*(lsegment)**3)/(wparam*thetabulk)	# (2+3*v/w*Cb)
 	print "alpha"
@@ -47,10 +47,13 @@ def pythonGSDE():
 	print deltaSeg
 	# Separation Distance is h, Maximum Lenght is L
 	refRg = lsegment*N**(0.5)
-	L = 6
+	L = 8
+	# L2 Controls the maximum separation distance
 	L2 = L/refRg
-	h = np.linspace(0.4,L2,200)
-	n = np.linspace(1,100000,100000)
+	# L1 Controls the minimum separation distance
+	L1 = 0.6
+	h = np.linspace(L1,L2,400)
+	n = np.linspace(1,10000,10000)
 	
 	WTot = []
 	WGSD = []
