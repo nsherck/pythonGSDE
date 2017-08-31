@@ -15,17 +15,25 @@ from scipy import interpolate
 from scipy.interpolate import interp1d
 
 def pythonGSDE():
+	"""pythonGSDE sovles equations (8), (29) and (33) from Shvets and Semenov J. Chem. Phys. 2013 paper. It is the first correction to the Ground-State Dominance Theory
+	for finite chain effects, i.e. (N < infinity). GSDE (Ground-State Dominance Extended) is valid when h >> correlation length, h = plate separation distance, |deltaEnd| << Rg
+    and |deltaSeg| << Rg:	
+	
+	USER INPUTS: There are two main places for users to input parameters, the first immediately follows the code header and is below. The second starts around lines 56 and deals
+	with the separation lengths to be simulated. Need the minimum to be below the maximum peak position.
+	
 	"""
 	
-	
-	"""
-	
-	
+	#***************************  USER DEFINED INPUTS  ******************************#
+	#********************************************************************************#
 	lsegment  = 1.0			# The length of a statistical segment / math.sqrt(6)
 	thetabulk = 1.0			# The volume fraction of the bulk	(Cb*lsegment**3)
-	excvol    =	65 		# The excluded volume parameter     (v = (1-2*ChiPS)*lsegment**3)
-	wparam    =	50			# The w parameter 					(w = lsegment**6)
+	excvol    =	3.9 		# The excluded volume parameter     (v = (1-2*ChiPS)*lsegment**3)
+	wparam    = 1.8			# The w parameter 					(w = lsegment**6)
 	N         =	1.0			# Chain Length
+	
+	#************************** END USER DEFINED INPUTS  ****************************#
+	#********************************************************************************#
 	alpha     = 2. + (3.*excvol*(lsegment)**3)/(wparam*thetabulk)	# (2+3*v/w*Cb)
 	print "alpha"
 	print alpha
@@ -45,16 +53,29 @@ def pythonGSDE():
 	deltaSeg  = (-1*math.sqrt(6)*lsegment**4)/(thetabulk*math.sqrt(wparam))*np.log((1+math.sqrt(1+alpha))/math.sqrt(alpha))
 	print "deltaSeg"
 	print deltaSeg
+	
+	#***************************  USER DEFINED INPUTS  ******************************#
+	#********************************************************************************#
 	# Separation Distance is h, Maximum Lenght is L
 	refRg = lsegment*N**(0.5)
 	L = 8
 	# L2 Controls the maximum separation distance
 	L2 = L/refRg
 	# L1 Controls the minimum separation distance
-	L1 = 0.6
+	L1 = 0.4
+	#************************** END USER DEFINED INPUTS  ****************************#
+	#********************************************************************************#
+	#Checks on validity
+	check1 = deltaEnd/refRg
+	check2 = deltaSeg/refRg
+	print "CHECK 1: |deltaEnd/Rg| << 1"
+	print check1
+	print "CHECK 2: |deltaSeg/Rg| << 1"
+	print check2
+		
 	h = np.linspace(L1,L2,400)
 	n = np.linspace(1,10000,10000)
-	
+
 	WTot = []
 	WGSD = []
 	WEND = []
@@ -62,25 +83,17 @@ def pythonGSDE():
 	hList = []
 	wEND = 0.
 	
-	for i in h:
+	for i in h: # Separation loop 
 	
 		wGSD = (-1*N**(0.5)/CorrLength)*thetabulk*A**2*np.exp(-1*i/CorrLength*lsegment*N**(0.5))
-		#print "h"
-		#print i
 		preFactor = (4*thetabulk/N/lsegment**3)*(deltaEnd-(i*lsegment*N**0.5+2*deltaSeg)/2*np.log(1+(2*deltaEnd/(i*lsegment*N**0.5+2*deltaSeg))))
-		#print "preFactor"
-		#print preFactor
-		for j in n:
+		
+		for j in n: # Summation Loop
 			y = 4*(math.pi**2)*(j**2)/(i**2)
 			wEND = wEND + ((1-(1+y)*np.exp(-1*y))/(y-1+np.exp(-1*y)))
 			
-			
-			#print "n"
-			#print wEND
 		SumTot.append(2*wEND)
 		wEND = preFactor*(2*wEND - Kappa*i + 1)
-		#print "wEND"
-		#print wEND
 		WTot.append((wGSD + wEND)*math.sqrt(N)*lsegment**3/thetabulk)
 		hList.append(i)
 		WGSD.append(wGSD)
@@ -93,6 +106,8 @@ def pythonGSDE():
 	flag = 0
 	maxpts = []
 	hmaxpts = []
+	#****************************  PMF MAXIMUM SEARCH  ******************************#
+	#********************************************************************************#
 	# Maximum Location and Height
 	while cnt < len(WTot)-2:
 		h1 = hList[cnt]
@@ -132,11 +147,16 @@ def pythonGSDE():
 		print MaxPeakPos
 		print "MaxPeak"
 		print MaxPeak
+		check3 = MaxPeakPos/CorrLength
+		print "CHECK 3: |MaxPeakPos/CorrLength| >> 1"
+		print check3
 	
 	else:
 		
 		print"no maximum found"
 	
+	#********************************  PMF PLOTTING  ********************************#
+	#********************************************************************************#
 	hList = np.asarray(hList)
 	WGSD  = np.asarray(WGSD)
 	WEND  = np.asarray(WEND)
