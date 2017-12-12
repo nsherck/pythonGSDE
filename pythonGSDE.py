@@ -13,6 +13,11 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from scipy import interpolate
 from scipy.interpolate import interp1d
+from scipy.integrate import quad
+
+# The definition of the integrand for fluctuations
+def integrand(x): 
+	return 4*x**2/(np.exp(2*x)-1)
 
 def pythonGSDE():
 	"""pythonGSDE sovles equations (8), (29) and (33) from Shvets and Semenov J. Chem. Phys. 2013 paper. It is the first correction to the Ground-State Dominance Theory
@@ -22,15 +27,19 @@ def pythonGSDE():
 	USER INPUTS: There are two main places for users to input parameters, the first immediately follows the code header and is below. The second starts around lines 56 and deals
 	with the separation lengths to be simulated. Need the minimum to be below the maximum peak position.
 	
+	NOTE ON INPUTS: To check match with Semenov 2013, set excvol = 100 and wparam = 200 (2*w_n) ; make sure lsegment = 1, thetabulk = 1 and N = 1. 
+		(1) if set as above, the output should be that reported in TABLE 1 of Semenov 2013 J. Chem. Phys. 139 ~ W* ~ 0.00398 and h* = 0.57 
+		(2) You cannot set wparam = 0 ; but if you set to << 1 (i.e. 0.0000001), you get results very close to GSDE in TABLE 1 Semenov 2013 for wparam = 0!
+	
 	"""
 	
 	#***************************  USER DEFINED INPUTS  ******************************#
 	#********************************************************************************#
 	lsegment  = 1.0			# The length of a statistical segment / math.sqrt(6)
-	thetabulk = 1.0			# The volume fraction of the bulk	(Cb*lsegment**3)
-	excvol    =	3.9 		# The excluded volume parameter     (v = (1-2*ChiPS)*lsegment**3)
-	wparam    = 1.8			# The w parameter 					(w = lsegment**6)
-	N         =	1.0			# Chain Length
+	thetabulk = 1			# The volume fraction of the bulk	(Cb*lsegment**3)
+	excvol    =	100 		# The excluded volume parameter     (v = (1-2*ChiPS)*lsegment**3)
+	wparam    = 200			# The w parameter 					(w = lsegment**6)
+	N         =	1			# Chain Length
 	
 	#************************** END USER DEFINED INPUTS  ****************************#
 	#********************************************************************************#
@@ -42,7 +51,7 @@ def pythonGSDE():
 	print A
 	# The End Corrected Bulk Correlation Length. The Edwards Corrected Correlation Lenght from GSD.
 	CorrLength= lsegment/math.sqrt(2*(excvol*thetabulk/lsegment**3 + wparam*thetabulk**2/lsegment**6 + 1/N))
-	print "Correlation Length"
+	print "Correlation Length/Rg"
 	print CorrLength
 	Kappa     = 0.61617  
 	# The I(alpha) function defined in A.A. Shvets and A.N. Semenov J. Chem. Phys. 2013
@@ -58,11 +67,12 @@ def pythonGSDE():
 	#********************************************************************************#
 	# Separation Distance is h, Maximum Lenght is L
 	refRg = lsegment*N**(0.5)
+	Rg = refRg
 	L = 8
 	# L2 Controls the maximum separation distance
 	L2 = L/refRg
 	# L1 Controls the minimum separation distance
-	L1 = 0.4
+	L1 = 0.5
 	#************************** END USER DEFINED INPUTS  ****************************#
 	#********************************************************************************#
 	#Checks on validity
@@ -73,33 +83,44 @@ def pythonGSDE():
 	print "CHECK 2: |deltaSeg/Rg| << 1"
 	print check2
 		
-	h = np.linspace(L1,L2,400)
-	n = np.linspace(1,10000,10000)
+	h = np.linspace(L1,L2,400) # Distance term
+	n = np.linspace(1,10000,10000) # Sum for the ground-state dominance term
 
 	WTot = []
 	WGSD = []
 	WEND = []
+	fFluct = []
 	SumTot = []
 	hList = []
+	ModDebye = []
 	wEND = 0.
+	I = 0.
+	sumReg = 0.
+	preFactFluct = 0.
+	sumSumTot = []
+	sumRegTot = []
 	
 	for i in h: # Separation loop 
 	
 		wGSD = (-1*N**(0.5)/CorrLength)*thetabulk*A**2*np.exp(-1*i/CorrLength*lsegment*N**(0.5))
 		preFactor = (4*thetabulk/N/lsegment**3)*(deltaEnd-(i*lsegment*N**0.5+2*deltaSeg)/2*np.log(1+(2*deltaEnd/(i*lsegment*N**0.5+2*deltaSeg))))
 		
+		#Fluctuation Terms
+		preFactFluct = 1./16./math.pi/(i*Rg)**3
+		I = quad(integrand,i,np.inf)
+		
 		for j in n: # Summation Loop
 			y = 4*(math.pi**2)*(j**2)/(i**2)
 			wEND = wEND + ((1-(1+y)*np.exp(-1*y))/(y-1+np.exp(-1*y)))
-			
+		
 		SumTot.append(2*wEND)
 		wEND = preFactor*(2*wEND - Kappa*i + 1)
 		WTot.append((wGSD + wEND)*math.sqrt(N)*lsegment**3/thetabulk)
 		hList.append(i)
 		WGSD.append(wGSD)
 		WEND.append(wEND)
+		fFluct.append(preFactFluct*I[0])
 		wEND = 0.0
-		
 		
 	lenWTot = len(WTot)
 	cnt = 0
@@ -143,9 +164,9 @@ def pythonGSDE():
 		MaxPeakPos = roots
 		MaxPeak = np.polynomial.polynomial.polyval(roots,coef)	# finds the maximum
 		
-		print "MaxPeakPos"
+		print "MaxPeakPos, h* [r/Rg]"
 		print MaxPeakPos
-		print "MaxPeak"
+		print "MaxPeak, W* [kbT]"
 		print MaxPeak
 		check3 = MaxPeakPos/CorrLength
 		print "CHECK 3: |MaxPeakPos/CorrLength| >> 1"
@@ -161,16 +182,19 @@ def pythonGSDE():
 	WGSD  = np.asarray(WGSD)
 	WEND  = np.asarray(WEND)
 	WTot  = np.asarray(WTot)
+	fFluct = np.asarray(fFluct)
 	
 	AlignedGSD = np.column_stack((hList,WGSD))
 	AlignedEND = np.column_stack((hList,WEND))
 	AlignedGSDE = np.column_stack((hList,WTot))
 	AlignedSumTot = np.column_stack((hList,SumTot))
+	AlignedfFluct = np.column_stack((hList, fFluct))
 	
 	np.savetxt("GSD.txt", AlignedGSD)
 	np.savetxt("END.txt", AlignedEND)
 	np.savetxt("GSDE.txt", AlignedGSDE)
 	np.savetxt("SumTot.txt", AlignedSumTot)
+	np.savetxt("fFluct.txt",AlignedfFluct)
 	
 	plt.plot(hList,WTot,'-')
 	plt.title('GSDE')
@@ -193,4 +217,12 @@ def pythonGSDE():
 	plt.savefig('PMF_WEND')
 	plt.close()
 	
+	plt.plot(hList,fFluct,'-')
+	plt.title('Fluctuation Contribution to Force')
+	plt.ylabel('P/kbT')
+	plt.xlabel("h/Rg")
+	plt.savefig('fFluct')
+	plt.close()
 	
+if __name__ == "__main__":					# Code that runs the program if called from the command line
+	pythonGSDE()		
